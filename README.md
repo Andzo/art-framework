@@ -130,11 +130,26 @@ art_framework_repo/
 │   ├── reliability.py        # Calibration & stability
 │   └── trust.py              # Explainability & compliance
 │
-└── visualization/
-    ├── eda_plots.py          # Exploratory analysis
-    ├── model_plots.py        # Model-specific plots
-    └── comparative_plots.py  # Cross-model comparisons
+├── visualization/
+│   ├── eda_plots.py          # Exploratory analysis
+│   ├── model_plots.py        # Model-specific plots
+│   └── comparative_plots.py  # Cross-model comparisons
+│
+└── reports/
+    └── eda_profiling_report.html  # Comprehensive EDA report
 ```
+
+## EDA Profiling Report
+
+An interactive exploratory data analysis report is included in the repository. To view it properly rendered:
+
+**[📊 View EDA Report](https://htmlpreview.github.io/?https://github.com/Andzo/art-framework/blob/main/reports/eda_profiling_report.html)**
+
+The report provides:
+- Univariate and bivariate analyses for all 39 variables
+- Correlation and association matrices
+- Missing value diagnostics
+- Distribution visualisations
 
 ## Configuration
 
