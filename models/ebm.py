@@ -73,17 +73,18 @@ class EBMModel(BaseModel):
     ) -> float:
         """Optuna objective function."""
         params = {
-            'max_bins': trial.suggest_int('max_bins', 128, 512),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1, log=True),
+            'max_bins': trial.suggest_categorical('max_bins', [128, 256, 512]),
+            'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.05, log=True),
             'interactions': trial.suggest_int('interactions', 0, 20),
-            'max_rounds': trial.suggest_int('max_rounds', 2000, 8000),
+            'max_rounds': trial.suggest_int('max_rounds', 2000, 15000),
             'min_samples_leaf': trial.suggest_int('min_samples_leaf', 2, 10),
+            'outer_bags': trial.suggest_categorical('outer_bags', [4, 8, 16]),
         }
 
         model = ExplainableBoostingClassifier(
             **params,
             random_state=self.random_state,
-            n_jobs=-1,
+            n_jobs=1,  # Use single thread to avoid Windows joblib memory issues
         )
         model.fit(X_train, y_train)
 
@@ -130,13 +131,14 @@ class EBMModel(BaseModel):
             logger.info(f"Best AUC: {study.best_value:.4f}")
             logger.info(f"Best params: {self.best_params}")
         else:
-            # Default parameters
+            # Default parameters (dissertation optimal)
             self.best_params = {
                 'max_bins': 256,
                 'learning_rate': 0.01,
                 'interactions': 10,
                 'max_rounds': 5000,
                 'min_samples_leaf': 2,
+                'outer_bags': 8,
             }
             logger.info("Using default hyperparameters")
 
@@ -144,7 +146,7 @@ class EBMModel(BaseModel):
         self.model = ExplainableBoostingClassifier(
             **self.best_params,
             random_state=self.random_state,
-            n_jobs=-1,
+            n_jobs=1,  # Use single thread to avoid Windows joblib memory issues
         )
         self.model.fit(X_train, y_train)
 
