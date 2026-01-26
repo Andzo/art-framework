@@ -190,26 +190,4 @@ The framework generates:
 - **Reports**: Markdown summary with interpretation guidance
 - **Checkpoints**: Resumable pipeline state
 
-## Citation
 
-If you use this framework in your research, please cite:
-
-```bibtex
-@mastersthesis{skungwini2025art,
-  title={An Accuracy-Reliability-Trust Evaluation of ML models for 
-         Post-Activation Credit Risk in the South African 
-         Telecommunications Sector},
-  author={Skungwini, Lebohang Andile},
-  year={2025},
-  school={University of KwaZulu-Natal}
-}
-```
-
-## License
-
-This project is provided for academic purposes. See LICENSE for details.
-
-## Author
-
-**Lebohang Andile Skungwini**  
-MSc Data Science, University of KwaZulu-Natal
