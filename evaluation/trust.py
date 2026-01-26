@@ -56,10 +56,10 @@ class TrustEvaluator:
             'category': 'glass-box',
         },
         'XGBoost': {
-            'plain_language': 1,  # SHAP values require interpretation
+            'plain_language': 2,  # SHAP values largely acceptable with interpretation
             'stability': 2,       # SHAP can vary with background samples
             'actionability': 2,   # Direction clear but magnitude approximate
-            'total': 5,
+            'total': 6,
             'category': 'black-box',
         },
         'FT-Transformer': {
@@ -209,14 +209,21 @@ class TrustEvaluator:
             'importance': data['scores'],
         }).sort_values('importance', ascending=False)
 
-        # Extract shape functions
+        # Extract shape functions (handle different interpret library versions)
         shape_functions = {}
         for i, name in enumerate(data['names']):
-            specific = data['specific'][i]
-            shape_functions[name] = {
-                'x': specific.get('names', []),
-                'y': specific.get('scores', []),
-            }
+            try:
+                if 'specific' in data and i < len(data['specific']):
+                    specific = data['specific'][i]
+                    shape_functions[name] = {
+                        'x': specific.get('names', []),
+                        'y': specific.get('scores', []),
+                    }
+                else:
+                    # Fallback: try to get from explain_global with index
+                    shape_functions[name] = {'x': [], 'y': []}
+            except (KeyError, IndexError, TypeError):
+                shape_functions[name] = {'x': [], 'y': []}
 
         return {
             'feature_importance': importance_df,

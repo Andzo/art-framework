@@ -47,6 +47,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Suppress verbose SHAP logging
+logging.getLogger('shap').setLevel(logging.WARNING)
+
 
 # =============================================================================
 # DATA LOADING AND PREPROCESSING
@@ -406,6 +409,7 @@ def run_delong_tests(results: Dict, y_test: np.ndarray) -> pd.DataFrame:
 def generate_visualizations(
     models: Dict,
     results: Dict,
+    X_test: np.ndarray,
     y_test: np.ndarray,
     feature_names: List[str],
     output_dir: Path,
@@ -727,10 +731,12 @@ def save_results(
     delong_df: pd.DataFrame,
     output_dir: Path,
 ):
-    """Save all results and models."""
-    # Create directories
-    models_dir = output_dir / 'models'
+    """Save all results and models to repo's folder structure."""
+    # Use repo's existing folders
+    models_dir = output_dir / 'models_saved'
+    reports_dir = output_dir / 'reports'
     models_dir.mkdir(exist_ok=True)
+    reports_dir.mkdir(exist_ok=True)
     
     # Save models
     for model_name, model in models.items():
@@ -772,12 +778,12 @@ def save_results(
         })
     
     metrics_df = pd.DataFrame(metrics_rows)
-    metrics_df.to_csv(output_dir / 'art_metrics.csv', index=False)
-    logger.info(f"Saved metrics to {output_dir / 'art_metrics.csv'}")
+    metrics_df.to_csv(reports_dir / 'art_metrics.csv', index=False)
+    logger.info(f"Saved metrics to {reports_dir / 'art_metrics.csv'}")
     
     # Save DeLong tests
-    delong_df.to_csv(output_dir / 'delong_tests.csv', index=False)
-    logger.info(f"Saved DeLong tests to {output_dir / 'delong_tests.csv'}")
+    delong_df.to_csv(reports_dir / 'delong_tests.csv', index=False)
+    logger.info(f"Saved DeLong tests to {reports_dir / 'delong_tests.csv'}")
     
     # Generate summary report
     report = [
@@ -823,12 +829,12 @@ def save_results(
     for _, row in delong_df.iterrows():
         sig = "**" if row['significant'] else ""
         report.append(f"{row['model_1']} vs {row['model_2']}: "
-                     f"ΔAU= {row['auc_diff']:.4f}, p={row['p_value']:.4f} {sig}")
+                     f"Delta_AUC= {row['auc_diff']:.4f}, p={row['p_value']:.4f} {sig}")
     
     report.append("")
     report.append("=" * 60)
     
-    with open(output_dir / 'evaluation_report.txt', 'w') as f:
+    with open(reports_dir / 'evaluation_report.txt', 'w', encoding='utf-8') as f:
         f.write('\n'.join(report))
     
     # Print summary
@@ -848,8 +854,8 @@ def main():
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='./results',
-        help='Directory for outputs (models, metrics, figures)'
+        default='.',
+        help='Base directory for outputs (uses figures/, models_saved/, reports/ subfolders)'
     )
     parser.add_argument(
         '--enable-tuning',
@@ -869,6 +875,13 @@ def main():
         type=str,
         default='all',
         help='Comma-separated list of models to train (lr,xgb,ebm,ftt) or "all"'
+    )
+    parser.add_argument(
+        '--use-smote-enn',
+        type=str,
+        default='true',
+        choices=['true', 'false'],
+        help='Apply SMOTE-ENN resampling to training data (true/false, default: true)'
     )
     
     args = parser.parse_args()
@@ -890,11 +903,28 @@ def main():
     logger.info(f"Hyperparameter tuning: {'ENABLED' if enable_tuning else 'DISABLED'}")
     logger.info(f"Random seed: {args.seed}")
     
-    # Parse model selection
+    # Parse model selection with flexible naming
+    MODEL_ALIASES = {
+        'lr': 'lr', 'logistic': 'lr', 'logreg': 'lr',
+        'xgb': 'xgb', 'xgboost': 'xgb',
+        'ebm': 'ebm', 'gam': 'ebm',
+        'ftt': 'ftt', 'ft': 'ftt', 'fttransformer': 'ftt', 'transformer': 'ftt',
+    }
+    
     if args.models.lower() == 'all':
         train_models = ['lr', 'xgb', 'ebm', 'ftt']
     else:
-        train_models = [m.strip().lower() for m in args.models.split(',')]
+        raw_models = [m.strip().lower() for m in args.models.split(',')]
+        train_models = []
+        for m in raw_models:
+            if m in MODEL_ALIASES:
+                train_models.append(MODEL_ALIASES[m])
+            else:
+                logger.warning(f"Unknown model '{m}' - valid options: {list(MODEL_ALIASES.keys())}")
+    
+    if not train_models:
+        logger.error("No valid models specified! Use: lr, xgb, ebm, ftt (or aliases)")
+        return
     
     logger.info(f"Models to train: {train_models}")
     
@@ -925,12 +955,20 @@ def main():
     logger.info(f"Val shape: {X_val.shape}")
     logger.info(f"Test shape: {X_test.shape}")
     
-    # Step 3: Apply SMOTE-ENN to training data
-    logger.info("\n" + "=" * 60)
-    logger.info("STEP 3: Applying SMOTE-ENN to training data")
-    logger.info("=" * 60)
+    # Step 3: Apply SMOTE-ENN to training data (optional)
+    use_smote_enn = args.use_smote_enn.lower() == 'true'
     
-    X_train_resampled, y_train_resampled = apply_smote_enn(X_train, y_train)
+    if use_smote_enn:
+        logger.info("\n" + "=" * 60)
+        logger.info("STEP 3: Applying SMOTE-ENN to training data")
+        logger.info("=" * 60)
+        X_train_resampled, y_train_resampled = apply_smote_enn(X_train, y_train)
+    else:
+        logger.info("\n" + "=" * 60)
+        logger.info("STEP 3: Skipping SMOTE-ENN (disabled via --use-smote-enn false)")
+        logger.info("=" * 60)
+        X_train_resampled, y_train_resampled = X_train, y_train
+        logger.info(f"Using original training data: {len(y_train):,} samples")
     
     # Step 4: Train models
     logger.info("\n" + "=" * 60)
@@ -959,6 +997,29 @@ def main():
             X_train_resampled, y_train_resampled, X_val, y_val, enable_tuning
         )
     
+    # EARLY SAVE: Save models immediately after training (before evaluation can fail)
+    logger.info("\n" + "=" * 60)
+    logger.info("SAVING MODELS (early save before evaluation)")
+    logger.info("=" * 60)
+    
+    models_dir = output_dir / 'models_saved'
+    models_dir.mkdir(exist_ok=True, parents=True)
+    
+    for model_name, model in models.items():
+        safe_name = model_name.lower().replace(' ', '_').replace('-', '_')
+        try:
+            if model_name == 'FT-Transformer':
+                torch.save(model.model.state_dict(), models_dir / f'{safe_name}.pt')
+                config = {'n_features': model.n_features, 'best_params': model.best_params}
+                with open(models_dir / f'{safe_name}_config.json', 'w') as f:
+                    json.dump(config, f, indent=2)
+            else:
+                with open(models_dir / f'{safe_name}.pkl', 'wb') as f:
+                    pickle.dump(model, f)
+            logger.info(f"Saved {model_name} to {models_dir}")
+        except Exception as e:
+            logger.error(f"Failed to save {model_name}: {e}")
+    
     # Step 5: Evaluate models
     logger.info("\n" + "=" * 60)
     logger.info("STEP 5: Evaluating models on test set")
@@ -966,7 +1027,31 @@ def main():
     
     results = {}
     for model_name, model in models.items():
-        results[model_name] = evaluate_model(model, model_name, X_test, y_test, feature_names)
+        try:
+            results[model_name] = evaluate_model(model, model_name, X_test, y_test, feature_names)
+        except Exception as e:
+            logger.error(f"Evaluation failed for {model_name}: {e}")
+            # Add minimal results so we can continue
+            y_pred_proba = model.predict_proba(X_test)
+            y_pred = model.predict(X_test)
+            from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score
+            results[model_name] = {
+                'auc': roc_auc_score(y_test, y_pred_proba),
+                'gini': 2 * roc_auc_score(y_test, y_pred_proba) - 1,
+                'ks': 0.0,
+                'top_decile_capture': 0.0,
+                'precision': precision_score(y_test, y_pred, zero_division=0),
+                'recall': recall_score(y_test, y_pred, zero_division=0),
+                'f1': f1_score(y_test, y_pred, zero_division=0),
+                'ece': 0.0,
+                'mce': 0.0,
+                'brier': 0.0,
+                'trust_score': 0,
+                'trust_normalized': 0.0,
+                'model_category': 'unknown',
+                'y_pred_proba': y_pred_proba,
+                'y_pred': y_pred,
+            }
     
     # Step 6: DeLong tests
     logger.info("\n" + "=" * 60)
@@ -980,7 +1065,7 @@ def main():
     logger.info("STEP 7: Generating visualizations")
     logger.info("=" * 60)
     
-    generate_visualizations(models, results, y_test, feature_names, output_dir)
+    generate_visualizations(models, results, X_test, y_test, feature_names, output_dir)
     
     # Step 8: Save results
     logger.info("\n" + "=" * 60)

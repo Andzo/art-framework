@@ -210,11 +210,37 @@ class EBMModel(BaseModel):
 
         shape_functions = {}
         for i, name in enumerate(data['names']):
-            shape_functions[name] = {
-                'x': data['specific'][i]['names'],
-                'y': data['specific'][i]['scores'],
-                'density': data['specific'][i].get('density', None),
-            }
+            try:
+                # Try newer interpret library API first
+                if hasattr(ebm_global, 'data') and callable(ebm_global.data):
+                    # Try to get data for specific feature
+                    if 'specific' in data and i < len(data.get('specific', [])):
+                        specific = data['specific'][i]
+                        shape_functions[name] = {
+                            'x': specific.get('names', []),
+                            'y': specific.get('scores', []),
+                            'density': specific.get('density', None),
+                        }
+                    else:
+                        # Fallback: use term_scores_ attribute directly
+                        if hasattr(self.model, 'term_scores_') and i < len(self.model.term_scores_):
+                            scores = self.model.term_scores_[i]
+                            # Get bin edges for x values
+                            if hasattr(self.model, 'bins_') and i < len(self.model.bins_):
+                                bins = self.model.bins_[i][0] if len(self.model.bins_[i]) > 0 else []
+                                x_vals = list(range(len(scores))) if not bins else bins
+                            else:
+                                x_vals = list(range(len(scores)))
+                            shape_functions[name] = {
+                                'x': x_vals,
+                                'y': list(scores),
+                                'density': None,
+                            }
+                        else:
+                            shape_functions[name] = {'x': [], 'y': [], 'density': None}
+            except (KeyError, IndexError, TypeError, AttributeError) as e:
+                logger.warning(f"Could not extract shape function for {name}: {e}")
+                shape_functions[name] = {'x': [], 'y': [], 'density': None}
 
         return shape_functions
 

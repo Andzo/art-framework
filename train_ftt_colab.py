@@ -4,15 +4,6 @@ FT-Transformer Training Script for Google Colab.
 This script trains the FT-Transformer model on Google Colab using
 data stored in Google Drive, then saves the trained model back to Drive.
 
-Upload this script to Colab or copy the contents into a notebook.
-
-Instructions:
-1. Upload this script to Colab or copy into a notebook cell
-2. Mount your Google Drive
-3. Update DATA_DIR and OUTPUT_DIR paths
-4. Run all cells
-
-Author: Lebohang Andile Skungwini
 """
 
 # =============================================================================
@@ -45,7 +36,7 @@ def setup_colab():
     print("Setup complete!")
 
 # Uncomment the line below when running in Colab:
-# setup_colab()
+setup_colab()
 
 # =============================================================================
 # IMPORTS

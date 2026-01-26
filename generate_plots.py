@@ -51,39 +51,77 @@ def load_saved_models(models_dir: Path) -> Dict:
         elif 'Ebm' in model_name:
             model_name = 'EBM'
         
-        with open(pkl_file, 'rb') as f:
-            models[model_name] = pickle.load(f)
-        logger.info(f"Loaded {model_name} from {pkl_file}")
+        try:
+            with open(pkl_file, 'rb') as f:
+                models[model_name] = pickle.load(f)
+            logger.info(f"Loaded {model_name} from {pkl_file}")
+        except Exception as e:
+            logger.warning(f"Could not load {pkl_file}: {e}")
+    
+    # Try loading XGBoost from JSON if not loaded via pickle
+    if 'XGBoost' not in models:
+        json_file = models_dir / 'XGBoost.json'
+        if json_file.exists():
+            try:
+                import xgboost as xgb
+                from models.xgboost_model import XGBoostModel
+                
+                booster = xgb.Booster()
+                booster.load_model(str(json_file))
+                
+                # Create wrapper
+                xgb_model = XGBoostModel(random_state=RANDOM_SEED)
+                xgb_model.model = booster
+                models['XGBoost'] = xgb_model
+                logger.info(f"Loaded XGBoost from {json_file}")
+            except Exception as e:
+                logger.warning(f"Could not load XGBoost from JSON: {e}")
     
     # Load FT-Transformer (PyTorch)
     pt_file = models_dir / 'ft_transformer.pt'
+    # Also check for alternative names
+    if not pt_file.exists():
+        pt_file = models_dir / 'FT-Transformer.pt'
+    if not pt_file.exists():
+        pt_file = models_dir / 'fttransformer_best.pt'
+    
     config_file = models_dir / 'ft_transformer_config.json'
     
-    if pt_file.exists() and config_file.exists():
-        from models.ft_transformer import FTTransformerModel, FTTransformer
-        
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-        
-        ftt_model = FTTransformerModel(
-            n_features=config['n_features'],
-            random_state=RANDOM_SEED,
-        )
-        
-        # Create the underlying model with saved params
-        arch_params = {k: v for k, v in config['best_params'].items() 
-                      if k in ['d_model', 'n_heads', 'n_layers', 'dropout']}
-        ftt_model.model = FTTransformer(
-            n_features=config['n_features'],
-            **arch_params
-        ).to(ftt_model.device)
-        
-        # Load weights
-        ftt_model.model.load_state_dict(torch.load(pt_file, map_location=ftt_model.device))
-        ftt_model.model.eval()
-        
-        models['FT-Transformer'] = ftt_model
-        logger.info(f"Loaded FT-Transformer from {pt_file}")
+    if pt_file.exists():
+        try:
+            from models.ft_transformer import FTTransformerModel, FTTransformer
+            
+            # Try loading config, use defaults if not found
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                n_features = config['n_features']
+                arch_params = {k: v for k, v in config.get('best_params', {}).items() 
+                              if k in ['d_model', 'n_heads', 'n_layers', 'dropout']}
+            else:
+                # Default architecture (needs to match saved model)
+                n_features = 74  # Adjust based on your data
+                arch_params = {'d_model': 64, 'n_heads': 4, 'n_layers': 2, 'dropout': 0.1}
+                logger.warning("No config file found, using default FT-Transformer architecture")
+            
+            ftt_model = FTTransformerModel(
+                n_features=n_features,
+                random_state=RANDOM_SEED,
+            )
+            
+            ftt_model.model = FTTransformer(
+                n_features=n_features,
+                **arch_params
+            ).to(ftt_model.device)
+            
+            # Load weights
+            ftt_model.model.load_state_dict(torch.load(pt_file, map_location=ftt_model.device))
+            ftt_model.model.eval()
+            
+            models['FT-Transformer'] = ftt_model
+            logger.info(f"Loaded FT-Transformer from {pt_file}")
+        except Exception as e:
+            logger.warning(f"Could not load FT-Transformer: {e}")
     
     return models
 
@@ -172,8 +210,8 @@ def main():
     parser.add_argument(
         '--models-dir',
         type=str,
-        default='./results/models',
-        help='Directory containing saved models'
+        default='./models_saved',
+        help='Directory containing saved models (.pkl, .pt files)'
     )
     parser.add_argument(
         '--data-dir',
@@ -184,8 +222,8 @@ def main():
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='./results',
-        help='Directory for output figures'
+        default='.',
+        help='Base directory for output (will use figures/ subfolder)'
     )
     
     args = parser.parse_args()

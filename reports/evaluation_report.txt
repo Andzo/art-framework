@@ -1,0 +1,24 @@
+============================================================
+A-R-T EVALUATION REPORT
+Generated: 2026-01-25 21:31:54
+============================================================
+
+ACCURACY PILLAR (Discrimination)
+----------------------------------------
+FT-Transformer:
+  AUC: 0.8277, Gini: 0.6553, KS: 0.5645
+
+RELIABILITY PILLAR (Calibration)
+----------------------------------------
+FT-Transformer:
+  ECE: 0.2118, Brier: 0.2284
+
+TRUST PILLAR (Explainability)
+----------------------------------------
+FT-Transformer:
+  Score: 5/9, Category: black-box
+
+DELONG TEST RESULTS
+----------------------------------------
+
+============================================================
