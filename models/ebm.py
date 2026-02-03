@@ -131,7 +131,7 @@ class EBMModel(BaseModel):
             logger.info(f"Best AUC: {study.best_value:.4f}")
             logger.info(f"Best params: {self.best_params}")
         else:
-            # Default parameters (dissertation optimal)
+            # Default parameters
             self.best_params = {
                 'max_bins': 256,
                 'learning_rate': 0.01,

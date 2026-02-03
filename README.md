@@ -23,7 +23,7 @@ This framework operationalises the A-R-T evaluation methodology presented in *"A
 
 ```bash
 # Clone the repository
-git clone https://github.com/[username]/art-framework.git
+git clone https://github.com/Andzo/art-framework.git
 cd art-framework
 
 # Create virtual environment (recommended)

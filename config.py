@@ -202,8 +202,8 @@ MODEL_SHORT_NAMES = {
 # =============================================================================
 
 FEATURE_REDUCTION_CONFIG = {
-    'pearson_threshold': 0.85,      # Dissertation: rho > 0.85 for numerical
-    'cramers_v_threshold': 0.6,     # Dissertation: V > 0.6 for categorical
+    'pearson_threshold': 0.85,      # rho > 0.85 for numerical
+    'cramers_v_threshold': 0.6,     # V > 0.6 for categorical
     'eta_threshold': 0.7,           # Mixed-type correlation threshold
     'vif_threshold': 10.0,          # VIF multicollinearity threshold
     'min_diff': 0.02,               # Minimum target correlation difference

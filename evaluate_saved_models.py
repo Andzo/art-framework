@@ -3,7 +3,7 @@
 Evaluate Saved Models Script.
 
 Loads pretrained models from disk and runs full A-R-T framework evaluation
-to regenerate all dissertation-required artifacts.
+to regenerate all artifacts.
 
 Usage:
     python evaluate_saved_models.py --data-dir ../art_source_data --output-dir .
@@ -50,10 +50,10 @@ from evaluation.trust import TrustEvaluator
 
 
 # =============================================================================
-# DISSERTATION GROUND TRUTH VALUES (from Chapter 6)
+# REFERENCE GROUND TRUTH VALUES
 # =============================================================================
 
-DISSERTATION_VALUES = {
+REFERENCE_VALUES = {
     'Logistic Regression': {
         'auc': 0.9013, 'gini': 0.8026, 'ks': 0.6450, 'top_decile': 0.324,
         'ece': 0.1259, 'brier': 0.1317,
@@ -444,13 +444,13 @@ def compute_composite_scores(results: Dict) -> pd.DataFrame:
 # TABLE GENERATION
 # =============================================================================
 
-def generate_dissertation_tables(
+def generate_tables(
     results: Dict,
     temporal_results: Dict,
     delong_df: pd.DataFrame,
     output_dir: Path,
 ) -> None:
-    """Generate all dissertation-format tables."""
+    """Generate all tables."""
     reports_dir = output_dir / 'reports'
     reports_dir.mkdir(exist_ok=True)
     
@@ -561,7 +561,7 @@ def generate_dissertation_tables(
 # FIGURE GENERATION
 # =============================================================================
 
-def generate_dissertation_figures(
+def generate_figures(
     models: Dict,
     results: Dict,
     X_test: np.ndarray,
@@ -569,7 +569,7 @@ def generate_dissertation_figures(
     feature_names: List[str],
     output_dir: Path,
 ) -> None:
-    """Generate all dissertation-required figures."""
+    """Generate all required figures."""
     import matplotlib.pyplot as plt
     
     figures_dir = output_dir / 'figures'
@@ -721,7 +721,7 @@ def generate_comparison_report(
         "",
         f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",
-        "This report compares the new model evaluation results against the dissertation's reported values.",
+        "This report compares the new model evaluation results against the reference reported values.",
         "",
         "---",
         "",
@@ -743,7 +743,7 @@ def generate_comparison_report(
     ]
     
     for model_name, res in results.items():
-        old = DISSERTATION_VALUES.get(model_name, {})
+        old = REFERENCE_VALUES.get(model_name, {})
         old_auc = old.get('auc', 'N/A')
         new_auc = res['auc']
         delta_auc = new_auc - old_auc if isinstance(old_auc, float) else 'N/A'
@@ -780,7 +780,7 @@ def generate_comparison_report(
     ])
     
     for model_name, res in results.items():
-        old = DISSERTATION_VALUES.get(model_name, {})
+        old = REFERENCE_VALUES.get(model_name, {})
         old_ece = old.get('ece', 'N/A')
         new_ece = res['ece']
         delta_ece = new_ece - old_ece if isinstance(old_ece, (int, float)) else 'N/A'
@@ -817,7 +817,7 @@ def generate_comparison_report(
     ])
     
     for model_name, res in results.items():
-        old = DISSERTATION_VALUES.get(model_name, {})
+        old = REFERENCE_VALUES.get(model_name, {})
         old_trust = old.get('trust_score', 'N/A')
         new_trust = res['trust_score']
         
@@ -845,7 +845,7 @@ def generate_comparison_report(
         "|-------|--------------|--------------|----------------|----------------|",
     ])
     
-    # Old ranks from dissertation
+    # Old ranks from reference values
     old_auc_ranks = {'XGBoost': 1, 'FT-Transformer': 2, 'EBM': 3, 'Logistic Regression': 4}
     old_art_ranks = {'EBM': 1, 'Logistic Regression': 2, 'XGBoost': 3, 'FT-Transformer': 4}
     
@@ -866,7 +866,7 @@ def generate_comparison_report(
         "|------------|-------------|-------------|------------------|------------------|",
     ])
     
-    # Old DeLong results from dissertation
+    # Old DeLong results
     old_delong = {
         ('Logistic Regression', 'XGBoost'): ('<0.001', True),
         ('Logistic Regression', 'EBM'): ('<0.001', True),
@@ -927,7 +927,7 @@ def generate_comparison_report(
         "",
         "### Narrative Conclusions",
         "",
-        "The following dissertation conclusions are evaluated against new model results:",
+        "The following conclusions are evaluated against new model results:",
         "",
     ])
     
@@ -969,7 +969,7 @@ def generate_comparison_report(
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Evaluate saved models and regenerate dissertation artifacts'
+        description='Evaluate saved models and regenerate artifacts'
     )
     parser.add_argument(
         '--data-dir', type=str, required=True,
@@ -1062,14 +1062,14 @@ def main():
     logger.info("STEP 6: Generating tables")
     logger.info("=" * 60)
     
-    generate_dissertation_tables(results, temporal_results, delong_df, output_dir)
+    generate_tables(results, temporal_results, delong_df, output_dir)
     
     # Step 7: Generate figures
     logger.info("\n" + "=" * 60)
     logger.info("STEP 7: Generating figures")
     logger.info("=" * 60)
     
-    generate_dissertation_figures(models, results, X_test, y_test, feature_names, output_dir)
+    generate_figures(models, results, X_test, y_test, feature_names, output_dir)
     
     # Step 8: Generate comparison report
     logger.info("\n" + "=" * 60)

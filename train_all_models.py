@@ -1,8 +1,7 @@
 """
-Dissertation-Aligned Credit Risk Model Training Script.
+Credit Risk Model Training Script.
 
-Trains all 4 models (LR, XGBoost, EBM, FT-Transformer) with EXACT alignment
-to dissertation methodology. Supports optional hyperparameter tuning.
+Trains all 4 models (LR, XGBoost, EBM, FT-Transformer). Supports optional hyperparameter tuning.
 
 Usage:
     python train_all_models.py --data-dir ../art_source_data --output-dir ./results
